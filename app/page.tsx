@@ -1,101 +1,201 @@
-import Image from "next/image";
+"use client";
+
+import { useRef, useState, useEffect } from "react";
+
+interface Message {
+  id: number;
+  content: string;
+  sender: string;
+  timestamp: string;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 1,
+      content: "你好！这是一条示例消息。",
+      sender: "助手",
+      timestamp: getCurrentTime(),
+    },
+  ]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [callTool, setCallTool] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const messageContainerRef = useRef<HTMLDivElement>(null);
+
+  // 获取当前时间
+  const getCurrentTime = () => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  };
+
+  const scrollToBottom = () => {
+    if (messageContainerRef.current) {
+      messageContainerRef.current.scrollTop =
+        messageContainerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // 发送消息
+  const handleSendMessage = async () => {
+    if (newMessage.trim() === "") return;
+
+    const message: Message = {
+      id: Date.now(),
+      content: newMessage,
+      sender: "我",
+      timestamp: getCurrentTime(),
+    };
+
+    setMessages([...messages, message]);
+    setNewMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userMessage: newMessage,
+          messageHistory: messages,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        let assistantMessage: Message;
+        console.log(data);
+
+        if (data.isToolCall) {
+          setCallTool(data.assistantMessage.tool);
+
+          const toolCallResponse = await fetch("/api/toolCall", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data.assistantMessage),
+          });
+
+          if (toolCallResponse.ok) {
+            const toolCallData = await toolCallResponse.json();
+            assistantMessage = {
+              id: Date.now() + 1,
+              content: toolCallData.data,
+              sender: "助手",
+              timestamp: getCurrentTime(),
+            };
+          }
+          setCallTool(null);
+        } else {
+          assistantMessage = {
+            id: Date.now() + 1,
+            content: data.assistantMessage,
+            sender: "助手",
+            timestamp: getCurrentTime(),
+          };
+        }
+
+        setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+      } else {
+        console.error("Failed to fetch response from server");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* 聊天头部 */}
+      <header className="bg-white shadow p-4">
+        <h1 className="text-xl font-bold">聊天室</h1>
+      </header>
+
+      {/* 聊天消息区域 */}
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        ref={messageContainerRef}
+      >
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`flex items-start gap-2.5 ${
+              message.sender === "我" ? "justify-end" : ""
+            }`}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <div className="flex flex-col gap-1 w-full max-w-[320px]">
+              <div
+                className={`flex items-center space-x-2 rtl:space-x-reverse ${
+                  message.sender === "我" ? "justify-end" : ""
+                }`}
+              >
+                <span className="text-sm font-semibold">{message.sender}</span>
+                <span className="text-sm text-gray-500">
+                  {message.timestamp}
+                </span>
+              </div>
+              <div
+                className={`${
+                  message.sender === "我"
+                    ? "bg-blue-500 text-white rounded-s-xl rounded-ee-xl"
+                    : "bg-blue-100 text-gray-800 rounded-e-xl rounded-es-xl"
+                } p-4`}
+              >
+                <p className="text-sm font-normal">{message.content}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-center items-center">
+            {callTool ? (
+              <span className="text-gray-500">正在调用工具...</span>
+            ) : (
+              <span className="text-gray-500">正在思考...</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 输入区域 */}
+      <div className="bg-white border-t p-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="输入消息..."
+            className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleSendMessage}
+            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
           >
-            Read our docs
-          </a>
+            发送
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
