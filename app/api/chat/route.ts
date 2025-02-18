@@ -13,10 +13,14 @@ export async function POST(req: NextRequest) {
       baseURL: process.env.MODEL_BASE_URL,
       apiKey: process.env.MODEL_API_KEY,
     });
+
     const concatenatedUserContent = `
-     My Ask: ${userMessage}
-      My History: ${messageHistory.map((m: any) => m.content).join("\n")}
+      Our Conversation History:
+${messageHistory.map((m: any) => `${m.sender}: ${m.content}`).join("\n")}
+     My Question is the following: ${userMessage}
     `;
+
+    console.log("concatenatedUserContent", concatenatedUserContent);
 
     const completion = await openai.chat.completions.create({
       messages: [
@@ -27,6 +31,8 @@ export async function POST(req: NextRequest) {
     });
 
     const assistantMessage = completion.choices[0].message.content;
+
+    console.log("assistantMessage", assistantMessage);
 
     if (!assistantMessage) {
       return NextResponse.json({ assistantMessage: "", isToolCall: false });

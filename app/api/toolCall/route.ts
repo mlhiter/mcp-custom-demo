@@ -1,3 +1,4 @@
+import axios from "axios";
 import { NextRequest, NextResponse } from "next/server";
 
 import config from "@/constants/mcpConfig/config.json";
@@ -12,15 +13,9 @@ export async function POST(request: NextRequest) {
       throw new Error(`找不到工具 ${response.tool} 的 host 配置`);
     }
 
-    const result = await fetch(tool.host, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(response.arguments),
-    });
+    const result = await axios.post(tool.host, response.arguments);
 
-    return NextResponse.json(await result.json());
+    return NextResponse.json({ data: result.data });
   } catch (error) {
     console.error("工具调用API出错:", error);
     return NextResponse.json({ error: "工具调用失败" }, { status: 500 });

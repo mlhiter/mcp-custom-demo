@@ -1,5 +1,6 @@
 "use client";
 
+import ReactMarkdown from "react-markdown";
 import { useRef, useState, useEffect } from "react";
 
 interface Message {
@@ -8,6 +9,14 @@ interface Message {
   sender: string;
   timestamp: string;
 }
+
+const getCurrentTime = () => {
+  const now = new Date();
+  return `${now.getHours().toString().padStart(2, "0")}:${now
+    .getMinutes()
+    .toString()
+    .padStart(2, "0")}`;
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([
@@ -23,15 +32,6 @@ export default function Home() {
   const [callTool, setCallTool] = useState<string | null>(null);
 
   const messageContainerRef = useRef<HTMLDivElement>(null);
-
-  // 获取当前时间
-  const getCurrentTime = () => {
-    const now = new Date();
-    return `${now.getHours().toString().padStart(2, "0")}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
-  };
 
   const scrollToBottom = () => {
     if (messageContainerRef.current) {
@@ -128,7 +128,7 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-gray-100">
       {/* 聊天头部 */}
       <header className="bg-white shadow p-4">
-        <h1 className="text-xl font-bold">聊天室</h1>
+        <h1 className="text-xl font-bold">MCP Demo</h1>
       </header>
 
       {/* 聊天消息区域 */}
@@ -159,9 +159,19 @@ export default function Home() {
                   message.sender === "我"
                     ? "bg-blue-500 text-white rounded-s-xl rounded-ee-xl"
                     : "bg-blue-100 text-gray-800 rounded-e-xl rounded-es-xl"
-                } p-4`}
+                } p-4 font-mono text-sm`}
               >
-                <p className="text-sm font-normal">{message.content}</p>
+                <ReactMarkdown
+                  components={{
+                    p: ({ children }) => (
+                      <p className="break-words whitespace-pre-wrap mb-2">
+                        {children}
+                      </p>
+                    ),
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
               </div>
             </div>
           </div>

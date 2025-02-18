@@ -1,6 +1,7 @@
 import config from "@/constants/mcpConfig/config.json";
 
 export const systemPrompts = `
+Response in Chinese.
 You are a helpful assistant with access to these tools:
 
 ${config.server
